@@ -53,54 +53,82 @@ const average = (arr) =>
 const key = "f18cbd90";
 
 export default function App() {
+  const [query, setQuery] = useState("");
   const [movies, setMovies] = useState([]);
   const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState("");
-  const query = "dark";
 
-  useEffect(function () {
-    async function fitchMovies() {
-      try {
-        setIsLoading(true);
-        const res = await fetch(
-          `http://www.omdbapi.com/?apikey=${key}&s=${query}`
-        );
-        if (!res.ok)
-          throw new Error("something went wrong with fitch data movies ");
+  useEffect(
+    function () {
+      async function fitchMovies() {
+        try {
+          setIsLoading(true);
+          setError("");
 
-        const data = await res.json();
-
-        if (data.Response === "False") throw new Error("movies not found");
-
-        setMovies(data.Search);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+          const res = await fetch(
+            `http://www.omdbapi.com/?apikey=${key}&s=${query}`
+          );
+          if (!res.ok)
+            throw new Error("something went wrong with fitch data movies ");
+          const data = await res.json();
+          if (data.Response === "False") throw new Error("movies not found");
+          setMovies(data.Search);
+          console.log(data.Search);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setIsLoading(false);
+        }
       }
-    }
-    fitchMovies();
-  }, []);
+      if (query.length < 3) {
+        setMovies([]);
+        setError("");
+        return;
+      }
 
+      fitchMovies();
+    },
+    [query]
+  );
+
+  function handleSelectMovie(id) {
+    setSelectedId((selectedId) => (selectedId === id ? null : id));
+  }
+
+  // function handleSelectMovie(id) {
+  //   setSelectedId((selectedId) => (id === selectedId ? null : id));
+  // }
+  function handleClose() {
+    setSelectedId(null);
+  }
   return (
     <>
       <Navbar>
         <Logo />
-        <Search />
+        <Search setQuery={setQuery} query={query} />
         <NumResults movies={movies} />
       </Navbar>
 
       <Main>
         <Box>
           {isLoading && <Loader />}
-          {!isLoading && !error && <MoviesList movies={movies} />}
+          {!isLoading && !error && (
+            <MoviesList movies={movies} onClickMovie={handleSelectMovie} />
+          )}
           {error && <ErrorMessage message={error} />}
         </Box>
 
         <Box>
-          <WatchSummary watched={watched} />
-          <WatchedMoviesList watched={watched} />
+          {selectedId ? (
+            <MoviesDetails selectedId={selectedId} onClickClose={handleClose} />
+          ) : (
+            <>
+              <WatchSummary watched={watched} />
+              <WatchedMoviesList watched={watched} />
+            </>
+          )}
         </Box>
       </Main>
     </>
@@ -131,9 +159,7 @@ function Logo() {
   );
 }
 
-function Search({ children }) {
-  const [query, setQuery] = useState("");
-
+function Search({ query, setQuery }) {
   return (
     <>
       <input
@@ -175,21 +201,21 @@ function Box({ children }) {
   );
 }
 
-function MoviesList({ movies }) {
+function MoviesList({ movies, onClickMovie }) {
   return (
     <>
-      <ul className="list">
+      <ul className="list list-movies">
         {movies?.map((movie) => (
-          <Movie movie={movie} key={movie.imdbID} />
+          <Movie movie={movie} key={movie.imdbID} onClickMovie={onClickMovie} />
         ))}
       </ul>
     </>
   );
 }
 
-function Movie({ movie }) {
+function Movie({ movie, onClickMovie }) {
   return (
-    <li>
+    <li onClick={() => onClickMovie(movie.imdbID)}>
       <img src={movie.Poster} alt={`${movie.Title} poster`} />
       <h3>{movie.Title}</h3>
       <div>
@@ -199,6 +225,17 @@ function Movie({ movie }) {
         </p>
       </div>
     </li>
+  );
+}
+
+function MoviesDetails({ selectedId, onClickClose }) {
+  return (
+    <div className="details">
+      <button className="btn-back" onClick={onClickClose}>
+        &larr;
+      </button>
+      {selectedId}
+    </div>
   );
 }
 
